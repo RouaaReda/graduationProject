@@ -1,86 +1,119 @@
-import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Image, TextInput } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet, Image, TextInput, Alert } from 'react-native';
 import { launchImageLibrary } from 'react-native-image-picker';
-import firebase from 'firebase/app';
-import 'firebase/database';
+import database from '@react-native-firebase/database';
 
-export default function profile({ navigation }) {
+export default function Profile({ navigation }) {
   const [selectImage, setSelectImage] = useState('');
-  const [username, setUsername] = useState('ادخل اسم المستخدم'); // Initial username
-  const [editingUsername, setEditingUsername] = useState(false);
-  const [newUsername, setNewUsername] = useState(username);
-
-  // Firebase configuration (initialize Firebase)
-  const firebaseConfig = {
-    // Your Firebase configuration details
-  };
-  if (!firebase.apps.length) {
-    firebase.initializeApp(firebaseConfig);
-  }
-
-  // Function to save user data to Firebase
-  const saveUserData = (userId, username, profilePicUrl) => {
-    firebase.database().ref(`users/${userId}`).set({
-      username: username,
-      profilePicUrl: profilePicUrl
-    });
-  };
-
-  // Function to handle saving the username
-  const handleSaveUsername = () => {
-    setUsername(newUsername); // Save the new username
-    setEditingUsername(false); // Exit editing mode
-
-    // Call saveUserData function to save user data to Firebase
-    const userId = firebase.auth().currentUser.uid; // Get the current user's ID (you may need to handle user authentication)
-    saveUserData(userId, newUsername, selectImage); // Pass the new username and profile picture URL to saveUserData
-  };
+  const [username, setUsername] = useState('');
+  const [userId, setUserId] = useState(null);
+  const [gmail, setGmail] = useState('');
 
   // Function to handle selecting an image from the gallery
-  const ImagePicker = () => {
-    let options = {
-      storageOptions: {
-        path: "image"
-      }
-    };
-    launchImageLibrary(options, response => {
-      if (response.didCancel) {
-        console.log('User cancelled image picker');
-      } else if (response.error) {
-        console.log('ImagePicker Error: ', response.error);
-      } else {
+  const handleImagePicker = () => {
+    launchImageLibrary({}, response => {
+      if (response.assets && response.assets.length > 0) {
         setSelectImage(response.assets[0].uri);
       }
     });
   };
 
+  // Function to validate Gmail format
+  const isValidGmail = (email) => {
+    const regex = /^[a-zA-Z0-9._%+-]+@gmail\.com$/;
+    return regex.test(email);
+  };
+
+  // Function to save user profile data to Firebase
+  const saveUserProfile = async () => {
+    if (!isValidGmail(gmail)) {
+      Alert.alert('تنبيه', 'يرجى إدخال بريد إلكتروني صالح ينتهي بـ @gmail.com');
+      return;
+    }
+
+    try {
+      if (userId) {
+        // Update existing profile
+        await database().ref(`users/${userId}`).update({
+          username,
+          profile_picture_url: selectImage,
+          gmail,
+        });
+        Alert.alert('تمت عملية الحفظ');
+      } else {
+        // Create new profile
+        const newUserRef = database().ref('users').push({
+          username,
+          profile_picture_url: selectImage,
+          gmail,
+        });
+        setUserId(newUserRef.key);
+        Alert.alert('تمت عملية الحفظ');
+      }
+    } catch (error) {
+      console.error('Error saving user profile:', error);
+      Alert.alert('Error saving user profile');
+    }
+  };
+
+  const fetchUserProfile = async () => {
+    try {
+      const snapshot = await database().ref('users').once('value');
+      const data = snapshot.val();
+      if (data) {
+        const key = Object.keys(data)[0];
+        const userProfile = data[key];
+        setUsername(userProfile.username);
+        setSelectImage(userProfile.profile_picture_url);
+        setGmail(userProfile.gmail);
+        setUserId(key);
+      }
+    } catch (error) {
+      console.error('Error fetching user profile:', error);
+    }
+  };
+
+  useEffect(() => {
+    fetchUserProfile();
+  }, []);
+
   return (
     <View style={styles.container}>
-      {/* Profile picture */}
-      <TouchableOpacity onPress={ImagePicker} style={styles.profilePictureContainer}>
-        <Image source={{ uri: selectImage }} style={styles.profilePicture} />
-      </TouchableOpacity>
-
-      {/* Username input */}
-      <TouchableOpacity onPress={() => setEditingUsername(true)}>
-        {editingUsername ? (
-          <TextInput
-            style={styles.input}
-            value={newUsername}
-            onChangeText={text => setNewUsername(text)}
-            autoFocus={true}
-          />
-        ) : (
-          <Text style={styles.username}>{username}</Text>
-        )}
-      </TouchableOpacity>
-
-      {/* Save changes button */}
-      {editingUsername && (
-        <TouchableOpacity onPress={handleSaveUsername} style={styles.saveButton}>
-          <Text style={styles.buttonText}>حفظ التغييرات</Text>
+      <View style={styles.bottomBar}>
+        <TouchableOpacity style={styles.iconButton} onPress={() => navigation.navigate('home')}>
+          <Image source={require('./extra/back.png')} style={styles.image} resizeMode="contain" />
         </TouchableOpacity>
-      )}
+
+        <TouchableOpacity style={styles.iconButton} onPress={() => navigation.navigate('profile')}>
+          <Image source={require('./extra/user.png')} style={styles.image} resizeMode="contain" />
+          <Text style={styles.Text}>الحساب الشخصي</Text>
+        </TouchableOpacity>
+      </View>
+      <TouchableOpacity onPress={handleImagePicker} style={styles.profilePictureContainer}>
+        <Image
+          style={styles.profilePicture}
+          source={selectImage ? { uri: selectImage } : require('./extra/user.png')}
+        />
+      </TouchableOpacity>
+
+      <TextInput
+        style={styles.input}
+        value={username}
+        onChangeText={text => setUsername(text)}
+        placeholder="ادخل اسم المستخدم"
+      />
+
+      <TextInput
+        style={styles.input}
+        value={gmail}
+        onChangeText={text => setGmail(text)}
+        placeholder="ادخل البريد الإلكتروني (Gmail)"
+        keyboardType="email-address"
+      />
+
+      <TouchableOpacity onPress={saveUserProfile} style={styles.saveButton}>
+        <Text style={styles.buttonText}>حفظ</Text>
+      </TouchableOpacity>
     </View>
   );
 }
@@ -90,21 +123,22 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#fff',
+    backgroundColor: '#6EB4A5',
   },
   profilePictureContainer: {
-    width: 150,
-    height: 150,
-    borderRadius: 75,
-    borderWidth: 2,
+    width: 170,
+    height: 170,
+    borderRadius: 85,
+    borderWidth: 1,
     marginBottom: 20,
     justifyContent: 'center',
     alignItems: 'center',
+    bottom: 100
   },
   profilePicture: {
     width: '100%',
     height: '100%',
-    borderRadius: 75,
+    borderRadius: 85,
   },
   input: {
     borderWidth: 1,
@@ -113,21 +147,44 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     paddingHorizontal: 12,
     marginBottom: 20,
-  },
-  username: {
-    fontSize: 18,
+    width: '80%',
+    bottom: 106,
     fontWeight: 'bold',
-    marginBottom: 20,
+    fontSize: 20
   },
   saveButton: {
-    backgroundColor: '#007bff',
+    backgroundColor: '#12635C',
     paddingVertical: 10,
-    paddingHorizontal: 20,
+    paddingHorizontal: 30,
     borderRadius: 5,
+    bottom: 106,
   },
   buttonText: {
-    color: '#fff',
-    fontSize: 16,
+    color: 'black',
+    fontSize: 20,
     fontWeight: 'bold',
   },
+  bottomBar: {
+    height: 60,
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    paddingVertical: 10,
+    bottom: 209,
+  },
+  iconButton: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  Text: {
+    color: 'black',
+    fontSize: 15,
+    fontWeight: '500',
+    fontFamily: 'Arial',
+  },
+  image: {
+    width: 30,
+    height: 30,
+  }
 });

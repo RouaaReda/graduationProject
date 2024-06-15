@@ -1,9 +1,9 @@
 import React from "react";
 import { View, Text, Image, TouchableOpacity, StyleSheet,ImageBackground, Button } from 'react-native';
+//import { Platform } from 'react-native';
+
 
 export default function home({navigation}){
-  
-
     return (
         <View style={styles.container}>
         <View style={styles.bottomBar}>
@@ -19,10 +19,12 @@ export default function home({navigation}){
           </TouchableOpacity>
         </View>
         <View style={styles.recentCallsContainer}>
-          {/* Board-like display for recent calls */}
-          <Text style={styles.recentCallsTitle}>المكالمات الفائتة</Text>
-          {/* Display recent calls here */}
+
+        <TouchableOpacity style={styles.button} onPress={()=>navigation.navigate('recorder')}>
+        <Text style={styles.buttonText}>الذهاب الى صفحة تحليل الممكالمة الصوتية</Text> 
+        </TouchableOpacity>
         </View>
+        
         <View style={styles.bottomBar}>
           {/* Icon buttons for settings, profile, and report screens */}
           <TouchableOpacity style={styles.iconButton} onPress={()=>navigation.navigate('setting')}>
@@ -78,7 +80,14 @@ const styles = StyleSheet.create({
     image: {
       width:30 ,
       height: 30,
-    }
+    },
+    button: {
+      backgroundColor: '#16537E',
+      paddingHorizontal: 30,
+      paddingVertical: 20,
+      borderRadius: 8,
+      
+    },
   });
 
   

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Image, FlatList, PermissionsAndroid } from 'react-native';
 import CallLogs from 'react-native-call-log';
 import { useNavigation } from '@react-navigation/native';
+import report from './report';
 
 export default function callhistory() {
   const [callLogs, setCallLogs] = useState([]);
@@ -22,7 +23,7 @@ export default function callhistory() {
         );
 
         if (granted === PermissionsAndroid.RESULTS.GRANTED) {
-          const logs = await CallLogs.load(5); // Load last 5 call logs
+          const logs = await CallLogs.load(7); 
           setCallLogs(logs);
         } else {
           console.log('Call Log permission denied');
@@ -35,29 +36,50 @@ export default function callhistory() {
     fetchCallLogs();
   }, []);
 
-  const handleCallPress = (phoneNumber) => {
-    // Navigate to the call report screen with the selected call number
-    navigation.navigate('report', { phoneNumber });
+  const handleCallPress = (callData) => {
+    if (callData) {
+      console.log("Call data:", callData); // Log the call data
+      // Navigate to the call report screen with the selected call data
+      navigation.navigate('report', { phoneNumber: callData.phoneNumber, callData });
+    } else {
+      console.warn("Call data is undefined");
+    }
   };
+  
+  
+  
 
   const renderItem = ({ item }) => {
     const durationSeconds = item.duration;
     const callDate = new Date(item.timestamp);
     const formattedDate = callDate.toLocaleString();
+    const callType = item.callType === "2" ? "مكالمة احتيالية" : "مكالمة غير احتيالية";
 
     return (
       
       
-      <TouchableOpacity style={styles.callItem} onPress={() => handleCallPress(item.phoneNumber)}>
+        <TouchableOpacity style={styles.callItem} onPress={() => handleCallPress(item)}>
+
+       <View style={styles.callInfo}>
         <Text style={styles.callNumber}>{item.phoneNumber}</Text>
+        <Text style={[styles.label, styles.labelRight]}>الرقم:</Text>
+       </View>
+        
         <View style={styles.callInfo}>
+           <Text style={styles.callValue}>{durationSeconds} ثانية</Text>
           <Text style={[styles.label, styles.labelRight]}>المدة:</Text>
-          <Text style={styles.callValue}>{durationSeconds} ثانية</Text>
+          
         </View>
         <View style={styles.callInfo}>
-          <Text style={[styles.label, styles.labelRight]}>التاريخ:</Text>
           <Text style={styles.callValue}>{formattedDate}</Text>
+          <Text style={[styles.label, styles.labelRight]}>التاريخ:</Text>
         </View>
+
+        <View style={styles.callInfo}>
+          <Text style={styles.callValue}>{callType}</Text>
+          <Text style={[styles.label, styles.labelRight]}>نوع المكالمة:</Text>
+        </View>
+
       </TouchableOpacity>
     );
   };
@@ -121,7 +143,8 @@ const styles = StyleSheet.create({
     marginRight: 5,
   },
   labelRight: {
-    textAlign: 'right',
+    textAlign: 'left',
+    color:'black'
   },
   callNumber: {
     fontSize: 16,
@@ -142,7 +165,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-around',
     alignItems: 'center',
-    backgroundColor: '#f0f0f0',
+    backgroundColor: '#FFFFFF',
     paddingVertical: 10,
   },
   image: {
